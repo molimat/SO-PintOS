@@ -89,11 +89,20 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
+  if (ticks < 1) return;
+  //int64_t start = timer_ticks ();
 
+// Foi criado um atributo blocked_time que vai definir por quantos ticks esta thread vai permancer bloqueada.
+// enquanto a thread estiver bloqueada, ela não voltara para a lista de execućao, poupando processamento.
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  enum intr_level old_level = intr_disable ();
+  struct thread *t = thread_current ();
+  t->blocked_time = ticks;
+  thread_block();
+// volta pra o nivel de interrupcao anterior 
+  intr_set_level (old_level);
+  //while (timer_elapsed (start) < ticks) 
+   // thread_yield ();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -165,13 +174,15 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+// a cada interrupcao percorre as threads bloqueadas para verificar se podem ser desbloqueadas
+  thread_foreach(check_blocked_time,NULL);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
