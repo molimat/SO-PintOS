@@ -349,14 +349,21 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+	/* implementado para ter alternância de prioridade momentânea */
+	thread_current ()->previous_priority = thread_current ()->priority; 
+
   thread_current ()->priority = new_priority;
+	thread_yield(); //vai verificar se, após adicionar uma nova prioridade, existe uma outra thread a ser executada antes. Não é a forma mais performática pra fazer isso, mas funciona.
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+	if (thread_current ()->active_donation)
+		return thread_current ()->donated_priority;
+	else 
+  	return thread_current ()->priority; 
 }
 
 /* Sets the current thread's nice value to NICE. */
