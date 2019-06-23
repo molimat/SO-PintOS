@@ -126,7 +126,7 @@ void thread_unblock (struct thread *);
 struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
-
+bool compare_priority (const struct list_elem *t,const struct list_elem *e,void *);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
