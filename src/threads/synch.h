@@ -38,6 +38,7 @@ struct condition
 
 void cond_init (struct condition *);
 void cond_wait (struct condition *, struct lock *);
+bool condvar_compare (const struct list_elem *t,const struct list_elem *e,void *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 

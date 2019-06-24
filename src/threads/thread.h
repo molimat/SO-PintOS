@@ -126,14 +126,14 @@ void thread_unblock (struct thread *);
 struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
-
+bool compare_priority (const struct list_elem *t,const struct list_elem *e,void *);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
-void check_blocked_time(struct thread *t, void *aux);
+void check_ticks(struct thread *t, void *aux);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
