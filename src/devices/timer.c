@@ -182,7 +182,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
 // a cada interrupcao percorre as threads bloqueadas para verificar se podem ser desbloqueadas
-  thread_foreach(check_blocked_time,NULL);
+  thread_foreach(check_ticks,NULL);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
