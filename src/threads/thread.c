@@ -145,7 +145,7 @@ thread_tick (void)
 //nova funcao que ira executar toda vez que o timer interrupt for chamado
 // essa funcao vai checar se a thread bloqueada pode ser desbloqueada ou não
 // se nao puder ela so descresce o valor do tempo de bloqueio
-void check_blocked_time(struct thread *t, void *aux){
+void check_ticks(struct thread *t, void *aux){
    if (t->status == THREAD_BLOCKED && t->blocked_time > 0){
      t->blocked_time--;
     if (t->blocked_time == 0)

@@ -113,11 +113,16 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+/* Agora ao inves de simplesmnte tirar o proximo da fila, vai pegar o elemento de maior prioridade e vai desbloquear. Alem disso tambem vai forcar que esse elemento execute */
+  if (!list_empty (&sema->waiters)) {
+		struct list_elem *higher_priority = list_max (&sema->waiters, compare_priority, NULL); 
+		list_remove (higher_priority);
+		thread_unblock (list_entry (higher_priority,struct thread,elem));
+	}
+   
   sema->value++;
   intr_set_level (old_level);
+	thread_yield();
 }
 
 static void sema_test_helper (void *sema_);
