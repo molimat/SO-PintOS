@@ -148,9 +148,9 @@ thread_tick (void)
 void check_ticks(struct thread *t, void *aux){
    if (t->status == THREAD_BLOCKED && t->blocked_time > 0){
      t->blocked_time--;
-    if (t->blocked_time == 0)
-      thread_unblock(t);
-  }
+    if (t->blocked_time > 0) return;
+		thread_unblock(t);	
+	}
 }
 
 /* Prints thread statistics. */
@@ -354,19 +354,16 @@ void
 thread_set_priority (int new_priority) 
 {
 	/* implementado para ter alternância de prioridade momentânea */
-	thread_current ()->previous_priority = thread_current ()->priority; 
-
-  thread_current ()->priority = new_priority;
-	thread_yield(); //vai verificar se, após adicionar uma nova prioridade, existe uma outra thread a ser executada antes. Não é a forma mais performática pra fazer isso, mas funciona.
+		thread_current ()->priority = new_priority;
+		struct list_elem *higher_priority_thread = list_max(&ready_list, compare_priority, NULL);
+		struct thread *t = list_entry (higher_priority_thread, struct thread, elem);
+		if (t->priority > new_priority)
+			thread_yield(); //vai verificar se, após adicionar uma nova prioridade, existe uma outra thread de maior prioridade a ser executada antes.
 }
-
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-	if (thread_current ()->active_donation)
-		return thread_current ()->donated_priority;
-	else 
   	return thread_current ()->priority; 
 }
 
@@ -524,7 +521,7 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else {
-    struct list_elem *higher_priority = list_max (&ready_list, compare_priority, NULL); //vai apontar pro elemento de maior prioridade na lista de ready threads
+    struct list_elem *higher_priority = list_max(&ready_list, compare_priority, NULL); //vai apontar pro elemento de maior prioridade na lista de ready threads
 		list_remove (higher_priority);
 		return list_entry (higher_priority, struct thread, elem);
 	}  

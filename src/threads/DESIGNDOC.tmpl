@@ -1,3 +1,4 @@
+
 			+--------------------+
 			|        CS 140      |
 			| PROJECT 1: THREADS |
@@ -75,18 +76,26 @@ int64_t blocked_time; 							/* Blocked time used to put a thread to sleep */
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
 /* Funcao que  foi implementada para varrer a lista de ready_threads e comparar suas prioridades. */
-bool compare_priority (const struct list_elem *t,const struct list_elem *e,void *);
+	bool compare_priority (const struct list_elem *t,const struct list_elem *e,void *);
 
 /* Sequencia de funcoes que retorna a thread da ready_list com maior prioridade, permitindo que esta thread seja priorizada na execuca0*/
-struct list_elem *higher_priority = list_max (&sema->waiters, compare_priority, NULL); 
-list_remove (higher_priority);
-thread_unblock (higher_priority,struct thread, elem));
+	struct list_elem *higher_priority = list_max (&sema->waiters, compare_priority, NULL); 
+	list_remove (higher_priority);
+	thread_unblock (higher_priority,struct thread, elem));
 
 /* Ao mudar a prioridade de uma thread, teremos um yield que ira verificar se agora existe uma thread com prioridade maior na lista de espera*/
-thread_set_priority (int new_priority);
+	thread_set_priority (int new_priority);
 
 /* a cada thread criada verifica-se se esta possui uma prioridade maior do que a thread em execucão, se tiver, ela toma o lugar da thread atual. */
-tid_t thread_create (const char *name, int priority, thread_func *function, void *aux);
+	tid_t thread_create (const char *name, int priority, thread_func *function, void *aux);
+
+/* para o Priority Sched */
+	int highest_priority;
+	struct list_elem elem;
+	struct list locks_acquired; /* Vai ser a lista de locks que a thread possui */
+	struct lock *lock_pending; /* vai conter o ponteiro pra lock pendente para continuar a execucão */
+	bool compare_lock_priority (const struct list_elem *e, const struct list_elem *t, void *); /* mais um comparador de prioridade dentro só que dentro da lista de lockers */
+
 
 
 >> B2: Explain the data structure used to track priority donation.
