@@ -89,13 +89,17 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
 		bool active_donation;								/* true if the thread is under priority donnation */
     int priority;                       /* Priority. */
-		int donated_priority;							/* Previous priority for priority scheduler */
 		int previous_priority;
     int64_t blocked_time; 							/* Blocked time used to put a thread to sleep */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+		/* Tratamento de Priority donation */
+		struct list locks_acquired; /* Vai ser a lista de locks que a thread possui */
+		struct lock *lock_pending; /* vai conter o ponteiro pra lock pendente para continuar a execucão */
+		struct thread *lock_pending_holder;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

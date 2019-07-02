@@ -75,6 +75,7 @@ sema_down (struct semaphore *sema)
   intr_set_level (old_level);
 }
 
+
 /* Down or "P" operation on a semaphore, but only if the
    semaphore is not already 0.  Returns true if the semaphore is
    decremented, false otherwise.
@@ -114,7 +115,7 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
 /* Agora ao inves de simplesmnte tirar o proximo da fila, vai pegar o elemento de maior prioridade e vai desbloquear. Alem disso tambem vai forcar que esse elemento execute */
-  if (!list_empty (&sema->waiters)) {
+  if (list_empty (&sema->waiters) == false) {
 		struct list_elem *higher_priority = list_max (&sema->waiters, compare_priority, NULL); 
 		list_remove (higher_priority);
 		thread_unblock (list_entry (higher_priority,struct thread,elem));
@@ -186,6 +187,9 @@ lock_init (struct lock *lock)
   sema_init (&lock->semaphore, 1);
 }
 
+bool compare_lock_priority (const struct list_elem *e, const struct list_elem *t, void *aux UNUSED) {
+	return list_entry(e, struct lock, elem)-> highest_priority < list_entry(t, struct lock, elem) -> highest_priority;
+}
 /* Acquires LOCK, sleeping until it becomes available if
    necessary.  The lock must not already be held by the current
    thread.
@@ -194,15 +198,29 @@ lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+
 void
 lock_acquire (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
+	struct thread *t = thread_current ();
+	
+	if (lock->semaphore.value == 0 && thread_mlfqs == false) {
+		struct lock *l = lock;
+		if (l->holder->priority < t->priority) {
+			l->holder->previous_priority = l->holder->priority;			
+			l->holder->priority = t->priority;
+		}
+	}
 
-  sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+	
+	sema_down (&lock->semaphore);
+	lock->holder = thread_current ();
+	
+	
+
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -234,10 +252,16 @@ void
 lock_release (struct lock *lock) 
 {
   ASSERT (lock != NULL);
-  ASSERT (lock_held_by_current_thread (lock));
+  ASSERT (lock_held_by_current_thread (lock)); 
 
-  lock->holder = NULL;
+	struct thread *t = lock->holder;
+	lock->holder = NULL;
   sema_up (&lock->semaphore);
+	if (t->previous_priority){
+		thread_set_priority(t->previous_priority);
+		t->previous_priority = NULL;
+	}
+	
 }
 
 /* Returns true if the current thread holds LOCK, false

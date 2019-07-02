@@ -1,3 +1,4 @@
+
 			+--------------------+
 			|        CS 140      |
 			| PROJECT 1: THREADS |
@@ -75,28 +76,66 @@ int64_t blocked_time; 							/* Blocked time used to put a thread to sleep */
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
 /* Funcao que  foi implementada para varrer a lista de ready_threads e comparar suas prioridades. */
-bool compare_priority (const struct list_elem *t,const struct list_elem *e,void *);
+	bool compare_priority (const struct list_elem *t,const struct list_elem *e,void *);
 
 /* Sequencia de funcoes que retorna a thread da ready_list com maior prioridade, permitindo que esta thread seja priorizada na execuca0*/
-struct list_elem *higher_priority = list_max (&sema->waiters, compare_priority, NULL); 
-list_remove (higher_priority);
-thread_unblock (higher_priority,struct thread, elem));
+	struct list_elem *higher_priority = list_max (&sema->waiters, compare_priority, NULL); 
+	list_remove (higher_priority);
+	thread_unblock (higher_priority,struct thread, elem));
 
 /* Ao mudar a prioridade de uma thread, teremos um yield que ira verificar se agora existe uma thread com prioridade maior na lista de espera*/
-thread_set_priority (int new_priority);
+	void thread_set_priority (int new_priority) 
+{
+	/* implementado para ter alternância de prioridade momentânea */
+		thread_current ()->priority = new_priority;
+		struct list_elem *higher_priority_thread = list_max(&ready_list, compare_priority, NULL);
+		struct thread *t = list_entry (higher_priority_thread, struct thread, elem);
+		if (t->priority > new_priority)
+			thread_yield(); //vai verificar se, após adicionar uma nova prioridade, existe uma outra thread de maior prioridade a ser executada antes.
+}
 
-/* a cada thread criada verifica-se se esta possui uma prioridade maior do que a thread em execucão, se tiver, ela toma o lugar da thread atual. */
-tid_t thread_create (const char *name, int priority, thread_func *function, void *aux);
+/* a cada thread criada verifica-se se esta possui uma prioridade maior do que a thread em execucão, se tiver, ela toma o lugar da thread atual. Foi só adicionado um thread_yield(); */
+
+
+/* para o Priority Sched, a ideia seria salvar tanto as locks que uma thread tinha, quanto as threads que estao esperando uma determinada lock, para que assim fosse possível trackear as modificaoes 
+	O priority donation one está funcionando, acontece que na hora de jogar pras listas eu estive encontrando problemas e nao consegui implementar daí pra frente.
+*/
+	int highest_priority;
+	struct list_elem elem;
+	struct list locks_acquired; /* Vai ser a lista de locks que a thread possui */
+	struct lock *lock_pending; /* vai conter o ponteiro pra lock pendente para continuar a execucão */
+	bool compare_lock_priority (const struct list_elem *e, const struct list_elem *t, void *); /* mais um comparador de prioridade dentro só que dentro da lista de lockers */
+	
+	if (lock->semaphore.value == 0 && thread_mlfqs == false) {
+		struct lock *l = lock;
+		if (l->holder->priority < t->priority) {
+			l->holder->previous_priority = l->holder->priority;			
+			l->holder->priority = t->priority;
+		}
+	}
 
 
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
 
+/*
+	Essa parte não foi implementada por dificuldades com a programacao e a linguagem.
+	A ideia aqui seria de que se uma Thread de prioridade 60, por exemplo estivesse necessitando de uma lock que está com uma prioridade 10, essa lock acabaria ficando travada com a thread de prioridade 10,
+	se esta tivesse que esperar uma terceira thread de prioridade 30 executar. Para evitar isso é feito um laco while que vai passando do lock->holder, lock->holder->pending_lock a lock->holder.
+	A ideia é percorrer toda a cadeia de locks que estarao suspensas devido a inversão de prioridade e entregar a maior prioridade (que seria a prioridade da thread de 60) para todas as outras threads (a de 		10 e de 30), assim elas poderiam terminar de executar e liberarem a resource.
+*/
+
 ---- ALGORITHMS ----
 
 >> B3: How do you ensure that the highest priority thread waiting for
 >> a lock, semaphore, or condition variable wakes up first?
+
+/* Na teoria seria usado uma funcao comparadora de locks em cima da lista de threads que estavam aguardando por aquela lock para saber qual era a thread de maior prioridade e assim acorda-la
+
+bool compare_lock_priority (const struct list_elem *e, const struct list_elem *t, void *aux UNUSED) {
+	return list_entry(e, struct lock, elem)-> highest_priority < list_entry(t, struct lock, elem) -> highest_priority;
+}
 
 Esse processo ocorre com a funcao compare priority que permite verificar as prioridades dentro de uma lista, criando um ponteiro para
 a thread de maior prioridade nesta lista. Com isso é possível retirar exatamente esta thread, esteja ela presente na lista de semaforos, ou na lista de threads ready para execucão.
@@ -104,8 +143,24 @@ a thread de maior prioridade nesta lista. Com isso é possível retirar exatamen
 >> B4: Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
 
+Como foi supracitado, encontrei problemas na manipulacao de listas e isso me impediu de implementar com eficacia tanto a lock_acquire quanto a lock_release.
+Mas seguindo a logica proposta, era necessario preencher tres tracks. 
+Ao acessar o lock_acquire é verificado se o semaphoro esta liberado, se nao tiver a thread vai armazenar essa lock como pending em sua estrutura. 
+Após isso é verificado a thread que tem a lock atualmente, se esta thread tiver uma prioridade menor que a thread que está aguardando, a thread que está aguardando doa sua prioridade para a thread com a lock, para que ela possa executar com mais rapidez. Depois disso, para o ciclo de nested, seria verificado se a thread que possui a lock estava dependendo de outra lock, se tivesse a prioridade desta (que ja
+possui a prioridade elevada) doaria para a nova thread e com isso reiniciaria o ciclo recursivo com ponteiros.
+Após isso o sema_down seria executado, bloqueando a thread principal. Após o sema_down, se a thread estiver ativa isso quer dizer que já não há mais dependencia do lock, entao o lock_pending é definido como NULL.
+Além disso a thread armazena em uma lista interna das locks que ela possui esta nova lock, e eventualmente, se uma nova thread surgir com uma prioridade maior que esta, nessa etapa é feita uma verificacao
+das threads que estão aguardando a lock. Se a lista dessas threads possuir alguma thread com a prioridade acima da lock que acabou de pegar a lock, esta thread dá yield.
+
+
+
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
+
+Na etapa de release as listas e as prioridades precisam ser reestabelecidas. Primeiro removemos a lock da lista de locks que a thread possui. Após isso, se ainda sobra alguma
+lock nesta lista, obtemos a lock de maior prioridade, isto é, a lock que possui uma thread aguardando com uma maior prioridade. Se esta prioridade for maior que a thread corrente,
+a thread corrente pega a prioridade desta lock. Se não há ninguem na lista, basta conferir qual a prioridade original da thread e recupera-la. 
+Para isso voltamos com o  campo previous_priority que foi armazenado anteriormente no lock_acquire.
 
 ---- SYNCHRONIZATION ----
 
@@ -113,10 +168,19 @@ a thread de maior prioridade nesta lista. Com isso é possível retirar exatamen
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
+A condicao de corrida se da quando em meio a alteracao de prioridade a funcao é interrompida por alguma outra thread e isso acaba criando inconstancias nas prioridades das threads,
+que acabam nao sendo salvas propriamente. Para evitar as questoes de condicao de corrida é possivel desabilitar as interrupcoes enquanto a funcao set_priority estiver ativa, que foi o que foi feito.
+
+Não, pois não são só threads que acessam esta funcao, algumas outras não possuem tratamento para locks e isso impediria estas de acessarem.
+
+
 ---- RATIONALE ----
 
 >> B7: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+/* Seguindo a logica de criar listas que seriam incrementadas com as threads pendentes e as locks de cada thread me pareceu algo bem lógico e simples de manter um regitro das mudanćas nas
+prioridades das threadas. Não contava com dificuldades de manipulacao de listas, ainda mais os list_elem, alem da falta de pratica na programacao C.  */
 
 			  ADVANCED SCHEDULER
 			  ==================
