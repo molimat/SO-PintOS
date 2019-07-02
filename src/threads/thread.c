@@ -15,6 +15,64 @@
 #include "userprog/process.h"
 #endif
 
+
+fpa_t int_to_fixed(int n)
+{
+    return (fpa_t)(n * (1 << FPA_BIT_SHIFT));
+}
+
+int fixed_to_int(fpa_t x)
+{
+    return fpa_round(((int)x / (int)(1 << FPA_BIT_SHIFT)));
+}
+
+// Division by 2 is the same than right shift 1 bit
+int fpa_round(fpa_t x)
+{
+    return x >= 0 ? ((x + (1 << (FPA_BIT_SHIFT - 1))) >> FPA_BIT_SHIFT) : ((x - (1 << (FPA_BIT_SHIFT - 1))) >> FPA_BIT_SHIFT);
+}
+
+fpa_t fpa_add(fpa_t a, fpa_t b)
+{
+    return a + b;
+}
+
+fpa_t fpa_sub(fpa_t a, fpa_t b)
+{
+    return a - b;
+}
+
+fpa_t fpa_int_add(fpa_t a, int b)
+{
+    return a + (fpa_t)(b * (1 << FPA_BIT_SHIFT));
+}
+
+fpa_t fpa_int_sub(fpa_t a, int b)
+{
+    return a - (fpa_t)(b * (1 << FPA_BIT_SHIFT));
+}
+
+fpa_t fpa_mult(fpa_t a, fpa_t b)
+{
+    return a * b;
+}
+
+fpa_t fpa_int_mult(fpa_t a, int b)
+{
+    return a * (fpa_t)(b * (1 << FPA_BIT_SHIFT));
+}
+
+fpa_t fpa_div(fpa_t a, fpa_t b)
+{
+    return a / b;
+}
+
+fpa_t fpa_int_div(fpa_t a, int b)
+{
+    return a / (fpa_t)(b * (1 << FPA_BIT_SHIFT));
+}
+
+
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -58,6 +116,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
+fpa_t load_avg;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -110,6 +169,7 @@ thread_start (void)
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
 
+  load_avg = int_to_fixed(0);
   /* Start preemptive thread scheduling. */
   intr_enable ();
 
@@ -376,33 +436,73 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+    thread_current()->nice = nice;
+    thread_current()->priority = calculate_mlfqs_priority(thread_current()->nice);
+    if (!list_empty(&ready_list) && thread_current()->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority)
+        thread_yield ();
+}
+
+int
+calculate_mlfqs_priority(int nice)
+{
+    fpa_t fpa_recent_cpu = int_to_fixed(thread_get_recent_cpu());
+    thread_current()->priority = fpa_round(fpa_sub(int_to_fixed(PRI_MAX), fpa_add(fpa_int_div(fpa_recent_cpu, 4), fpa_int_div(int_to_fixed(nice), 2))));
+    
+    return thread_current()->priority;
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
+}
+
+void
+increase_recent_cpu(void)
+{
+    struct thread *t = thread_current ();
+    if (t == idle_thread)
+      return;
+    t->recent_cpu = fpa_int_add(t->recent_cpu, 1);    
+}
+
+fpa_t
+calculate_recent_cpu(void)
+{
+    fpa_t fpa_2_load_avg = int_to_fixed(2*thread_get_load_avg());
+
+    return fpa_int_add(fpa_mult(fpa_div(fpa_2_load_avg, fpa_int_add(fpa_2_load_avg, 1)), thread_current()->recent_cpu), thread_get_nice());
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+    ASSERT(fixed_to_int(fpa_int_mult(int_to_fixed(1), 100)) == 100)
+    return fixed_to_int(fpa_int_mult(calculate_load_avg(), 100));
+}
+
+fpa_t calculate_load_avg (void)
+{
+    size_t ready_threads = list_size (&ready_list);
+    if (thread_current () != idle_thread)
+        ready_threads++;
+
+    load_avg = fpa_add(fpa_int_div(fpa_int_mult(load_avg, 59), 60), fpa_int_div(int_to_fixed(ready_threads), 60));
+
+    return load_avg;
+
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+    thread_current()->recent_cpu = calculate_recent_cpu();
+  return fpa_round(fixed_to_int(fpa_int_mult(thread_current()->recent_cpu, 100)));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -491,6 +591,8 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->nice = 0;
+  t->recent_cpu = int_to_fixed(0);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();

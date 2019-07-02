@@ -5,6 +5,32 @@
 #include <list.h>
 #include <stdint.h>
 
+typedef int fpa_t;
+
+#define FPA_BIT_SHIFT 14
+
+fpa_t int_to_fixed(int n);
+
+int fixed_to_int(fpa_t x);
+
+int fpa_round(fpa_t x);
+
+fpa_t fpa_add(fpa_t a, fpa_t b);
+
+fpa_t fpa_sub(fpa_t a, fpa_t b);
+
+fpa_t fpa_int_add(fpa_t a, int b);
+
+fpa_t fpa_int_sub(fpa_t a, int b);
+
+fpa_t fpa_mult(fpa_t a, fpa_t b);
+
+fpa_t fpa_int_mult(fpa_t a, int b);
+
+fpa_t fpa_div(fpa_t a, fpa_t b);
+
+fpa_t fpa_int_div(fpa_t a, int b);
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -90,6 +116,8 @@ struct thread
 		bool active_donation;								/* true if the thread is under priority donnation */
     int priority;                       /* Priority. */
 		int previous_priority;
+    int nice; 
+    fpa_t recent_cpu;
     int64_t blocked_time; 							/* Blocked time used to put a thread to sleep */
     struct list_elem allelem;           /* List element for all threads list. */
 
@@ -143,7 +171,11 @@ void thread_set_priority (int);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
+int calculate_mlfqs_priority(int);
+void increase_recent_cpu(void);
+fpa_t calculate_recent_cpu(void);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+fpa_t calculate_load_avg(void);
 
 #endif /* threads/thread.h */
