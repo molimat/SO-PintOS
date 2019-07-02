@@ -354,11 +354,18 @@ void
 thread_set_priority (int new_priority) 
 {
 	/* implementado para ter alternância de prioridade momentânea */
-		thread_current ()->priority = new_priority;
-		struct list_elem *higher_priority_thread = list_max(&ready_list, compare_priority, NULL);
-		struct thread *t = list_entry (higher_priority_thread, struct thread, elem);
-		if (t->priority > new_priority)
-			thread_yield(); //vai verificar se, após adicionar uma nova prioridade, existe uma outra thread de maior prioridade a ser executada antes.
+	enum intr_level old_level;
+
+	thread_current ()->priority = new_priority;
+	struct list_elem *higher_priority_thread = list_max(&ready_list, compare_priority, NULL);
+	struct thread *t = list_entry (higher_priority_thread, struct thread, elem);
+	if (t->priority > new_priority)
+		thread_yield(); //vai verificar se, após adicionar uma nova prioridade, existe uma outra thread de maior prioridade a ser executada antes.
+
+
+	old_level = intr_disable ();
+
+	intr_set_level (old_level);
 }
 /* Returns the current thread's priority. */
 int
