@@ -10,7 +10,7 @@
 >> Fill in the names and email addresses of your group members.
 
 Matheus Molin <matheusmolin@poli.ufrj.br>
-Jonathan Alcantara <email@domain.example>
+Jonathan Alcantara <jonathan.alcantara@poli.ufrj.br>
 
 ---- PRELIMINARIES ----
 
@@ -191,6 +191,15 @@ prioridades das threadas. Não contava com dificuldades de manipulacao de listas
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+
+int nice; 
+fpa_t recent_cpu;
+int load_avg;
+
+Passaram a fazer arte da struct thread. Seu objetivo é associar Niceness e dados de uso de CPU.
+
+Também criamos um tipo fpa_t que é para reaizar a implementação de Aritimética de Ponto Fixo.
+
 ---- ALGORITHMS ----
 
 >> C2: Suppose threads A, B, and C have nice values 0, 1, and 2.  Each
@@ -201,23 +210,23 @@ prioridades das threadas. Não contava com dificuldades de manipulacao de listas
 timer  recent_cpu    priority   thread
 ticks   A   B   C   A   B   C   to run
 -----  --  --  --  --  --  --   ------
- 0
- 4
- 8
-12
-16
-20
-24
-28
-32
-36
-
->> C3: Did any ambiguities in the scheduler specification make values
+ 0     0   0   0   63  61  59     A          
+ 4     4   0   0   62  61  59     A          
+ 8     8   0   0   61  61  59     B          
+12     8   4   0   61  60  59     A          
+16     12  4   0   60  60  59     B          
+20     12  8   0   60  59  59     A          
+24     16  8   0   59  59  59     C          
+28     16  8   4   59  59  58     B          
+32     16  12  4   59  58  58     A          
+36     20  12  4   58  58  58     C         
+ >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behavior of your scheduler?
-
+A documentação especifica qual thread escolher quando estão em filas de prioridade diferente, mas fica em aberto o que fazer quanddo estão na mesma. Acreditamos que o mais adequado teria sido implementar listas encadeadas pra cada prioridade e fazer round robin ali dentro. Mas na prática simplesmente não damos yield e a thread roda até acabar ou deixar de ser a mais prioritária.
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
+Nós escrevemos o código pra Ponto Fixo e os métodos, mas nosso Ponto Fixo ficou inconsistente, por isso não chegamos a colocar alta precisão fazendo os métodos rodarem fora de contexto.
 
 ---- RATIONALE ----
 
@@ -225,6 +234,7 @@ ticks   A   B   C   A   B   C   to run
 >> disadvantages in your design choices.  If you were to have extra
 >> time to work on this part of the project, how might you choose to
 >> refine or improve your design?
+Nós tivemos dificuldade em debugar os resultados das operações em ponto fixo. Inclusive não conseguimos corrigir tudo, nosso principal objetivo de melhoria é fazer isso funcionar.
 
 >> C6: The assignment explains arithmetic for fixed-point math in
 >> detail, but it leaves it open to you to implement it.  Why did you
@@ -232,6 +242,7 @@ ticks   A   B   C   A   B   C   to run
 >> abstraction layer for fixed-point math, that is, an abstract data
 >> type and/or a set of functions or macros to manipulate fixed-point
 >> numbers, why did you do so?  If not, why not?
+Criamos um tipo pra ponto fixo e funções para realizar cada operação, mas não funcionaram como esperado.
 
 			   SURVEY QUESTIONS
 			   ================
